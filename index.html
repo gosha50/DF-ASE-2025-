@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Diastolic Function (ASE 2025) — Calculator</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0b1020"/>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --card: #121a33;
+      --muted: #8ca0ff;
+      --text: #e8edff;
+      --ok: #1bb35e;
+      --warn: #f0c52b;
+      --bad: #ff5d6e;
+      --chip: #1d2752;
+    }
+    html, body { margin:0; padding:0; background:var(--bg); color:var(--text); font: 16px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+    header { padding: 16px 20px; position: sticky; top: 0; background: linear-gradient(180deg, rgba(11,16,32,0.97), rgba(11,16,32,0.8)); backdrop-filter: blur(6px); display:flex; gap:14px; align-items:center; z-index: 10; }
+    header h1 { font-size: 18px; margin:0; }
+    header small { color: var(--muted); }
+    main { padding: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+    .card { background: var(--card); border: 1px solid #1a254a; border-radius: 12px; padding: 16px; }
+    .card h2 { font-size: 16px; margin: 0 0 10px 0; color: #cfe0ff; }
+    .row { display: grid; grid-template-columns: 1fr 110px; gap: 10px; align-items: center; margin: 6px 0; }
+    .row label { font-size: 13px; color: #c0ccff; }
+    input, select { width: 100%; background: #0f1530; color: var(--text); border: 1px solid #28356c; border-radius: 8px; padding: 8px 10px; font-size: 14px; }
+    input:focus, select:focus { outline: 2px solid #4051a9; }
+    .chips { display:flex; flex-wrap: wrap; gap:6px; }
+    .chip { background: var(--chip); color: var(--muted); border-radius: 999px; padding: 4px 10px; font-size: 12px; border: 1px solid #2a3871; }
+    .chip.ok { color:#b9ffd4; border-color: #1b844d; background: rgba(27,179,94,0.08); }
+    .chip.bad { color:#ffd6db; border-color: #9c2232; background: rgba(255,93,110,0.08); }
+    .chip.warn { color:#fff3c7; border-color: #916f10; background: rgba(240,197,43,0.08); }
+    .muted { color:#b4c2ff; opacity: 0.85; }
+    .result { font-size: 18px; margin-top: 4px; }
+    .result .badge { font-weight: 600; padding: 4px 8px; border-radius: 8px; }
+    .badge.ok { background: rgba(27,179,94,0.18); color: #b9ffd4; border: 1px solid #1b844d; }
+    .badge.bad { background: rgba(255,93,110,0.18); color: #ffd6db; border: 1px solid #9c2232; }
+    .badge.warn { background: rgba(240,197,43,0.18); color: #fff3c7; border: 1px solid #916f10; }
+    .tiny { font-size: 12px; }
+    .mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
+    .divider { height:1px; background:#233062; margin:10px 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>ASE 2025 Diastolic Function Calculator</h1>
+      <small>Sinus rhythm + AF • Age-banded reference ranges • PWA offline</small>
+    </div>
+    <div style="margin-left:auto" class="tiny muted">v2025.11.04</div>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Patient & Rhythm</h2>
+      <div class="row">
+        <label>Age (years)</label>
+        <input id="age" type="number" min="18" max="110" value="65">
+      </div>
+      <div class="row">
+        <label>Rhythm</label>
+        <select id="rhythm">
+          <option value="sinus">Sinus rhythm</option>
+          <option value="af">Atrial fibrillation</option>
+        </select>
+      </div>
+      <div class="row">
+        <label>LARS vendor (for reference bands)</label>
+        <select id="larsVendor">
+          <option value="tomtec">TomTec</option>
+          <option value="echopac">EchoPAC</option>
+        </select>
+      </div>
+      <div class="tiny muted">AF algorithm ignores LA strain by guideline; vendor affects LARS reference display only.</div>
+    </section>
+
+    <section class="card">
+      <h2>Transmitral inflow</h2>
+      <div class="row"><label>E velocity (cm/s)</label><input id="E_cm" type="number" step="0.1"></div>
+      <div class="row"><label>A velocity (cm/s)</label><input id="A_cm" type="number" step="0.1"></div>
+      <div class="row"><label>E/A (auto)</label><input id="EA" type="text" readonly></div>
+      <div class="row"><label>Deceleration time, DT (ms)</label><input id="DT" type="number" step="1" placeholder="optional in sinus; used in AF"></div>
+      <div class="row"><label>IVRT (ms)</label><input id="IVRT" type="number" step="1" placeholder="optional"></div>
+    </section>
+
+    <section class="card">
+      <h2>Mitral annular e' (TDI)</h2>
+      <div class="row"><label>Septal e' (cm/s)</label><input id="e_septal" type="number" step="0.1"></div>
+      <div class="row"><label>Lateral e' (cm/s)</label><input id="e_lateral" type="number" step="0.1"></div>
+      <div class="row"><label>Avg e' (auto)</label><input id="e_avg" type="text" readonly></div>
+      <div class="row"><label>Avg E/e' (auto)</label><input id="E_over_e_avg" type="text" readonly></div>
+      <div class="tiny muted">E/e′ abnormality thresholds: septal ≥15, lateral ≥13, average ≥14 (age-independent).</div>
+    </section>
+
+    <section class="card">
+      <h2>Secondary variables</h2>
+      <div class="row"><label>TR V<sub>max</sub> (m/s)</label><input id="TRV" type="number" step="0.01"></div>
+      <div class="row"><label>PASP (mmHg)</label><input id="PASP" type="number" step="1" placeholder="optional"></div>
+      <div class="row"><label>LAVi (mL/m²)</label><input id="LAVi" type="number" step="0.1"></div>
+      <div class="row"><label>PV S/D ratio</label><input id="PVSD" type="number" step="0.01"></div>
+      <div class="row"><label>LARS (%)</label><input id="LARS" type="number" step="0.1"></div>
+    </section>
+
+    <section class="card">
+      <h2>Result</h2>
+      <div id="chips" class="chips"></div>
+      <div class="divider"></div>
+      <div class="result" id="resultText">—</div>
+      <div style="margin-top:6px" class="tiny"><span class="badge" id="confBadge">Confidence: —</span></div>
+      <div id="nextSteps" class="tiny muted" style="margin-top:6px"> </div>
+    </section>
+
+    <section class="card">
+      <h2>Reference bands (by age)</h2>
+      <div class="tiny muted">5th–95th percentile from Table 5; LARS vendor-specific; e′ age cutoffs from Table 6.</div>
+      <div id="refbands" class="chips" style="margin-top:8px"></div>
+    </section>
+  </main>
+
+<script>
+// ===== Reference Data =====
+const TABLE5 = {
+  "20-39": { E_mps: [0.54, 1.11], A_mps: [0.24, 0.68], EA: [0.88, 2.73], e_lat_cms: [9.9, 22.1], LARS_tomtec_pct: [29.9, 60.5], LARS_echopac_pct: [29.5, 64.9] },
+  "40-60": { E_mps: [0.47, 1.02], A_mps: [0.33, 0.82], EA: [0.69, 2.07], e_lat_cms: [7.5, 17.5], LARS_tomtec_pct: [27.5, 55.4], LARS_echopac_pct: [25.3, 61.5] },
+  "60-80": { E_mps: [0.39, 0.92], A_mps: [0.43, 0.97], EA: [0.50, 1.40], e_lat_cms: [5.2, 13.0], LARS_tomtec_pct: [25.1, 50.3], LARS_echopac_pct: [21.1, 58.1] }
+};
+function ePrimeCutoffs(age) { if (age<=39) return {septal:7, lateral:10, avg:9}; if (age<=65) return {septal:6, lateral:8, avg:7}; return {septal:6, lateral:7, avg:6.5}; }
+function table5Band(age){ if(age<=39) return "20-39"; if(age<=60) return "40-60"; return "60-80"; }
+function fmtRange([lo,hi], unit=""){ return `${lo}–${hi}${unit}`; }
+function val(v){ const n = Number(v); return Number.isFinite(n) ? n : null; }
+
+function update(){
+  const age = val(document.getElementById('age').value);
+  const rhythm = document.getElementById('rhythm').value;
+  const vendor = document.getElementById('larsVendor').value;
+
+  const E_cm = val(document.getElementById('E_cm').value);
+  const A_cm = val(document.getElementById('A_cm').value);
+  const DT = val(document.getElementById('DT').value);
+  const IVRT = val(document.getElementById('IVRT').value);
+  const e_sep = val(document.getElementById('e_septal').value);
+  const e_lat = val(document.getElementById('e_lateral').value);
+  const TRV = val(document.getElementById('TRV').value);
+  const PASP = val(document.getElementById('PASP').value);
+  const LAVi = val(document.getElementById('LAVi').value);
+  const PVSD = val(document.getElementById('PVSD').value);
+  const LARS = val(document.getElementById('LARS').value);
+
+  // Derived
+  const E_over_A = (E_cm && A_cm) ? (E_cm / A_cm) : null;
+  document.getElementById('EA').value = (E_over_A ? E_over_A.toFixed(2) : "");
+  const e_avg = (e_sep && e_lat) ? ((e_sep + e_lat)/2) : (e_sep ?? e_lat ?? null);
+  document.getElementById('e_avg').value = (e_avg ? e_avg.toFixed(2) : "");
+  const E_over_e_avg = (E_cm && e_avg) ? (E_cm / e_avg) : null;
+  document.getElementById('E_over_e_avg').value = (E_over_e_avg ? E_over_e_avg.toFixed(2) : "");
+
+  // Reference chips
+  const ref = age ? TABLE5[table5Band(age)] : null;
+  const refBandsDiv = document.getElementById('refbands');
+  refBandsDiv.innerHTML = "";
+  if (ref){
+    const larsBand = (vendor==='tomtec')? ref.LARS_tomtec_pct : ref.LARS_echopac_pct;
+    const items = [
+      {label:'E (m/s)', range: fmtRange(ref.E_mps)},
+      {label:'A (m/s)', range: fmtRange(ref.A_mps)},
+      {label:'E/A', range: fmtRange(ref.EA)},
+      {label:"Lateral e' (cm/s)", range: fmtRange(ref.e_lat_cms)},
+      {label:`LARS ${vendor==='tomtec'?'TomTec':'EchoPAC'} (%)`, range: fmtRange(larsBand)}
+    ];
+    for(const r of items){ const span=document.createElement('span'); span.className='chip'; span.textContent=`${r.label}: ${r.range}`; refBandsDiv.appendChild(span); }
+  }
+
+  // Build chips
+  const chips = [];
+  const chipBox = document.getElementById('chips');
+  chipBox.innerHTML='';
+  function chip(text, state){ const s=document.createElement('span'); s.className='chip '+(state||''); s.textContent=text; chipBox.appendChild(s); }
+
+  // Age-adjusted e' abnormal
+  let eAbn = null;
+  if (age && (e_sep || e_lat)){
+    const cut = ePrimeCutoffs(age);
+    const abnSep = (e_sep!=null) ? (e_sep < cut.septal) : false;
+    const abnLat = (e_lat!=null) ? (e_lat < cut.lateral) : false;
+    const abnAvg = (e_avg!=null) ? (e_avg < cut.avg) : false;
+    eAbn = abnSep || abnLat || abnAvg;
+    chip(`e' for age: ${eAbn?'abnormal':'normal'}`, eAbn?'warn':'ok');
+  }
+
+  // E/e' abnormal
+  let EoverE_abn = null;
+  const EoverE_sep = (E_cm && e_sep) ? (E_cm / e_sep) : null;
+  const EoverE_lat = (E_cm && e_lat) ? (E_cm / e_lat) : null;
+  const condSep = (EoverE_sep!=null) ? (EoverE_sep >= 15) : false;
+  const condLat = (EoverE_lat!=null) ? (EoverE_lat >= 13) : false;
+  const condAvg = (E_over_e_avg!=null) ? (E_over_e_avg >= 14) : false;
+  EoverE_abn = condSep || condLat || condAvg;
+  if (E_cm) chip(`E/e' abnormal? ${EoverE_abn?'Yes':'No'}`, EoverE_abn?'warn':'ok');
+
+  // PASP/TR
+  let pasp_abn = null;
+  if (PASP!=null || TRV!=null){
+    pasp_abn = (PASP!=null && PASP >= 35) || (PASP==null && TRV!=null && TRV >= 2.8);
+    chip(`TRV/PASP: ${pasp_abn?'elevated':'not elevated'}`, pasp_abn?'warn':'ok');
+  }
+
+  // LAVi
+  let LAVi_abn = null;
+  if (LAVi!=null){ LAVi_abn = LAVi > 34; chip(`LAVi ${LAVi_abn?'>34':'≤34'}`, LAVi_abn?'warn':'ok'); }
+
+  // PV S/D
+  let PVSD_abn = null;
+  if (PVSD!=null){ PVSD_abn = PVSD <= 0.67; chip(`PV S/D ${PVSD_abn?'≤0.67':'>'}`, PVSD_abn?'warn':'ok'); }
+
+  // LARS
+  let LARS_abn = null;
+  if (LARS!=null){ LARS_abn = LARS <= 18; chip(`LARS ${LARS_abn?'≤18%':'>'}${rhythm==='af'?' (ignored in AF)':''}`, rhythm==='af'?'':(LARS_abn?'warn':'ok')); }
+
+  if (E_over_A!=null) chip(`E/A ${E_over_A.toFixed(2)}`, E_over_A>=2?'bad':'ok');
+  if (DT!=null) chip(`DT ${DT} ms`, DT<=160?'warn':'ok');
+  if (IVRT!=null) chip(`IVRT ${IVRT} ms`, IVRT<=70?'warn':'ok');
+
+  // Decision
+  let summary = '';
+  if (rhythm==='sinus'){
+    const corePresent = [(eAbn!==null),(EoverE_abn!==null),(pasp_abn!==null)].filter(Boolean).length;
+    const allAbn = (eAbn===true && EoverE_abn===true && pasp_abn===true);
+    const allNorm = (eAbn===false && EoverE_abn===false && pasp_abn===false && corePresent===3);
+    const EA = E_over_A;
+    const usedSecondStage = ((LARS_abn===true) || (PVSD_abn===true) || (LAVi_abn===true) || (IVRT!=null && IVRT<=70));
+
+    if (allAbn){
+      const grade = (EA!=null && EA>=2) ? 'Grade 3 (marked ↑ LAP)' : 'Grade 2 (mild–mod ↑ LAP)';
+      summary = `LAP: Elevated. ${grade}.`;
+    } else if (allNorm){
+      summary = 'Normal diastolic function. LAP: Normal.';
+    } else {
+      if (usedSecondStage){
+        const grade = (EA!=null && EA>=2) ? 'Grade 3 (marked ↑ LAP)' : 'Grade 2 (mild–mod ↑ LAP)';
+        summary = `LAP: Elevated by secondary criteria. ${grade}.`;
+      } else if (eAbn===true && (EoverE_abn===false||EoverE_abn===null) && (pasp_abn===false||pasp_abn===null) && (EA!=null && EA<=0.8)){
+        summary = 'Grade 1 diastolic dysfunction (impaired relaxation) with normal LAP.';
+      } else if (corePresent < 3){
+        summary = 'Insufficient core data to apply main algorithm.';
+      } else {
+        summary = 'Likely normal LAP (secondary variables not abnormal).';
+      }
+    }
+
+    // Confidence
+    let conf='Low', msg='';
+    if (allAbn || allNorm || (eAbn===true && (EoverE_abn===false||EoverE_abn===null) && (pasp_abn===false||pasp_abn===null) && (EA!=null && EA<=0.8))){
+      conf = (corePresent===3) ? 'High' : 'Medium';
+    } else if (usedSecondStage){
+      conf = 'Medium';
+    } else if (corePresent>=2 && summary.indexOf('Likely normal')>=0){
+      conf = 'Medium';
+    } else {
+      conf = 'Low';
+    }
+    let msgBase = 'If symptoms persist despite a normal-rest picture, consider diastolic exercise echo or invasive hemodynamics (PCWP > 15 mmHg at rest or ≥ 25 mmHg with exercise).';
+    if (conf==='Low') msg = 'Missing or conflicting core data. Acquire missing core indices (e′ by TDI, E/e′, and TRV/PASP). ' + msgBase;
+    else if (conf==='Medium' && summary.includes('Elevated')) msg = 'Classification leans elevated using secondary checks or partial core data. Consider confirmatory testing. ' + msgBase;
+    else if (conf==='Medium') msg = 'Reasonable classification with partial data. ' + msgBase;
+    else msg = 'Classification supported by complete, concordant core data.';
+    setConfidence(conf, msg);
+
+  } else {
+    // AF: four markers
+    const m1 = (E_cm!=null && E_cm >= 100);
+    const m2 = (E_cm!=null && e_sep!=null && (E_cm / e_sep) > 11);
+    const m3 = ((PASP!=null && PASP > 35) || (PASP==null && TRV!=null && TRV > 2.8));
+    const m4 = (DT!=null && DT <= 160);
+    const count = [m1,m2,m3,m4].filter(Boolean).length;
+    const assessed = [(E_cm!=null), (E_cm!=null && e_sep!=null), ((PASP!=null)||(TRV!=null)), (DT!=null)].filter(Boolean).length;
+
+    if (count>=2) summary = 'AF: Elevated LAP (≥2 markers).';
+    else if (count===0) summary = 'AF: Normal LAP (0 markers).';
+    else summary = 'AF: Indeterminate (1 marker).';
+
+    // Confidence
+    let conf='Low', msg='';
+    if (assessed>=3 && (count===0 || count>=2)) conf='High';
+    else if (assessed>=2 && (count===0 || count>=2)) conf='Medium';
+    else conf='Low';
+
+    if (conf==='Low') msg = 'Too few AF markers to classify confidently. Average 5–10 beats for E and e′, capture a high-quality TR envelope or PASP, and measure DT if possible. Consider stress echo or RHC if symptoms are significant.';
+    else if (conf==='Medium') msg = 'Decision based on a subset of AF markers. If management hinges on precision, add markers or confirm with exercise echo or RHC.';
+    else msg = 'AF classification supported by ≥3 markers and a clear count (0 or ≥2).';
+    setConfidence(conf, msg);
+  }
+
+  document.getElementById('resultText').innerHTML = summary;
+}
+
+function setConfidence(level, msg){
+  const b = document.getElementById('confBadge');
+  b.textContent = `Confidence: ${level}`;
+  b.className = 'badge ' + (level==='High'?'ok':(level==='Medium'?'warn':'bad'));
+  document.getElementById('nextSteps').innerHTML = msg || '';
+}
+
+// Wire inputs
+for (const id of ['age','rhythm','larsVendor','E_cm','A_cm','DT','IVRT','e_septal','e_lateral','TRV','PASP','LAVi','PVSD','LARS']) {
+  document.getElementById(id).addEventListener('input', update);
+}
+update();
+
+// PWA service worker
+if ('serviceWorker' in navigator){ window.addEventListener('load', ()=> navigator.serviceWorker.register('./service-worker.js')); }
+</script>
+</body>
+</html>
